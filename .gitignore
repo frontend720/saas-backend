@@ -9,3 +9,7 @@ coverage/
 
 client/node_modules/
 client/dist/
+
+# Uploaded files (keep the folder, ignore contents)
+uploads/*
+!uploads/.gitkeep

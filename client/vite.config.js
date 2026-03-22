@@ -13,6 +13,7 @@ export default defineConfig({
       // '/graphql': 'http://localhost:4500',
       '/api': 'https://8292-83-136-182-237.ngrok-free.app',
       '/graphql': 'https://8292-83-136-182-237.ngrok-free.app',
+      '/uploads': 'https://8292-83-136-182-237.ngrok-free.app',
     },
     http: '192.168.1.142'
   },

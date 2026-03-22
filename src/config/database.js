@@ -4,8 +4,6 @@ import config from './index.js';
 
 let isConnected = false;
 
-mongoose.connect("mongodb://localhost:27017/saas-backend");
-
 const connect = async () => {
   if (isConnected) return;
 
@@ -24,13 +22,13 @@ const connect = async () => {
   });
 
   try {
-    await mongoose.connect("mongodb://localhost:27017/saas-backend");
+    await mongoose.connect(config.mongo.uri, config.mongo.options);
   } catch (err) {
     console.error('[db] Initial connection failed:', err.message);
     // Retry once after 5s — beyond that, let the process manager restart
     setTimeout(() => {
       console.log('[db] Retrying connection...');
-      mongoose.connect("mongodb://localhost:27017/saas-backend", config.mongo.options).catch(() => {
+      mongoose.connect(config.mongo.uri, config.mongo.options).catch(() => {
         console.error('[db] Retry failed. Exiting.');
         process.exit(1);
       });

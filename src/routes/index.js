@@ -4,6 +4,7 @@ import projectRoutes from './projects.js';
 import assetRoutes from './assets.js';
 import adminRoutes from './admin.js';
 import healthRoutes from './health.js';
+import uploadRoutes from './uploads.js';
 
 const router = Router();
 
@@ -11,6 +12,7 @@ router.use('/health', healthRoutes);
 router.use('/auth', authRoutes);
 router.use('/projects', projectRoutes);
 router.use('/projects/:projectId/assets', assetRoutes);
+router.use('/uploads', uploadRoutes);
 router.use('/admin', adminRoutes);
 
 export default router;

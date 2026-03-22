@@ -4,10 +4,14 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import config from './config/index.js';
 import routes from './routes/index.js';
 import errorHandler from './middleware/errorHandler.js';
 import { AppError } from './utils/AppError.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@as-integrations/express4';
 import { typeDefs } from './graphql/typeDefs.js';
@@ -141,8 +145,9 @@ app.use(
   })
 );
 // ---------------------------------------------------------------------------
-// 4. API Routes (REST)
+// 4. Static uploads + API Routes (REST)
 // ---------------------------------------------------------------------------
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api', routes);
 
 // Root

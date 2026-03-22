@@ -1,6 +1,7 @@
 // src/pages/Project.jsx
 import { useQuery, useMutation } from "@apollo/client";
 import { useState } from "react";
+import AssetIngester from "../components/AssetIngester.jsx";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -36,9 +37,9 @@ const AssetCard = ({ asset, onDelete }) => {
   return (
     <div className="group border border-[#111111] bg-white flex flex-col h-48">
       <div className="flex-1 border-b border-[#111111] flex items-center justify-center bg-[#F9F9F9] relative overflow-hidden">
-        {asset.thumbnailUrl ? (
+        {asset.thumbnailUrl || (asset.url && asset.mimeType?.startsWith('image/')) ? (
           <img
-            src={asset.thumbnailUrl}
+            src={asset.thumbnailUrl || asset.url}
             alt={asset.filename}
             className="w-full h-full object-cover"
           />
@@ -174,8 +175,9 @@ export default function Project() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [showEdit, setShowEdit] = useState(false);
+  const [showIngest, setShowIngest] = useState(false);
 
-  const { data, loading, error } = useQuery(PROJECT, {
+  const { data, loading, error, refetch } = useQuery(PROJECT, {
     variables: { id },
   });
 
@@ -328,8 +330,10 @@ export default function Project() {
           <h2 className="text-2xl font-bold text-[#111111] uppercase tracking-tight">
             Assets
           </h2>
-          {/* TODO: Wire to file upload flow */}
-          <button className="flex items-center gap-2 bg-[#FF4500] text-white px-4 py-2 font-bold text-sm uppercase border border-[#111111] shadow-[4px_4px_0px_0px_rgba(17,17,17,1)] active:shadow-none active:translate-y-1 active:translate-x-1 hover:bg-[#111111] transition-colors">
+          <button
+            onClick={() => setShowIngest(true)}
+            className="flex items-center gap-2 bg-[#FF4500] text-white px-4 py-2 font-bold text-sm uppercase border border-[#111111] shadow-[4px_4px_0px_0px_rgba(17,17,17,1)] active:shadow-none active:translate-y-1 active:translate-x-1 hover:bg-[#111111] transition-colors"
+          >
             <Plus size={16} />
             Ingest
           </button>
@@ -359,6 +363,13 @@ export default function Project() {
         isOpen={showEdit}
         onClose={() => setShowEdit(false)}
         project={project}
+      />
+
+      <AssetIngester
+        isOpen={showIngest}
+        onClose={() => setShowIngest(false)}
+        activeCapsuleId={id}
+        onSuccess={() => refetch()}
       />
     </div>
   );
