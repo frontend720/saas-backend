@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#111111"/>
+  
+  <!-- Orange accent square (top-left brand mark) -->
+  <rect x="64" y="64" width="80" height="80" fill="#FF4500"/>
+  
+  <!-- Letter I - bold geometric -->
+  <rect x="200" y="160" width="112" height="32" fill="#F9F9F9"/>
+  <rect x="232" y="160" width="48" height="224" fill="#F9F9F9"/>
+  <rect x="200" y="352" width="112" height="32" fill="#F9F9F9"/>
+  
+  <!-- Bottom-right accent line -->
+  <rect x="368" y="368" width="80" height="8" fill="#FF4500"/>
+</svg>
