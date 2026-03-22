@@ -4,14 +4,15 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
-import path from 'path';
+import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import config from './config/index.js';
 import routes from './routes/index.js';
 import errorHandler from './middleware/errorHandler.js';
 import { AppError } from './utils/AppError.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@as-integrations/express4';
 import { typeDefs } from './graphql/typeDefs.js';
@@ -145,26 +146,29 @@ app.use(
   })
 );
 // ---------------------------------------------------------------------------
-// 4. Static uploads + API Routes (REST)
+// 4. API Routes (REST)
 // ---------------------------------------------------------------------------
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api', routes);
 
-// Root
-app.get('/', (_req, res) => {
-  res.json({
-    name: 'SaaS Backend API',
-    version: '1.0.0',
-    docs: '/api/health',
+// ---------------------------------------------------------------------------
+// Static frontend (production)
+// ---------------------------------------------------------------------------
+if (config.isProd) {
+  const distPath = resolve(__dirname, '../../client/dist');
+  app.use(express.static(distPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(resolve(distPath, 'index.html'));
   });
-});
+} else {
+  app.get('/', (_req, res) => {
+    res.json({ name: 'SaaS Backend API', version: '1.0.0', docs: '/api/health' });
+  });
 
-// ---------------------------------------------------------------------------
-// 404 fallback
-// ---------------------------------------------------------------------------
-app.all('*', (req, _res, next) => {
-  next(AppError.notFound(`Route ${req.method} ${req.originalUrl} not found`));
-});
+  // 404 fallback (dev only — prod handled by SPA catch-all above)
+  app.all('*', (req, _res, next) => {
+    next(AppError.notFound(`Route ${req.method} ${req.originalUrl} not found`));
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Global error handler (must be last)

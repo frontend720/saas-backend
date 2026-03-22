@@ -6,7 +6,8 @@ const start = async () => {
   // Connect to MongoDB
   await db.connect();
 
-  const server = app.listen(4500, '0.0.0.0', () => {
+  const PORT = process.env.PORT || 4500;
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`
 ╔══════════════════════════════════════════╗
 ║  SaaS Backend API                        ║
