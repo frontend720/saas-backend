@@ -29,9 +29,9 @@ const app = express();
 app.use(
   helmet({
     crossOriginEmbedderPolicy: false,
-    crossOriginResourcePolicy: process.env.NODE_ENV === 'production' ? undefined : { policy: 'cross-origin' },
-    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
-    frameguard: process.env.NODE_ENV === 'production' ? undefined : false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: false,
+    frameguard: false,
   })
 );
 
