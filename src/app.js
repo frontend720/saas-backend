@@ -19,7 +19,8 @@ import { typeDefs } from './graphql/typeDefs.js';
 import { resolvers } from './graphql/resolvers.js';
 
 // IMPORTANT: Make sure you actually export 'verifyToken' from this file
-import { verifyToken } from './middleware/auth.js'; 
+import { verifyToken } from './middleware/auth.js';
+import { webhook as stripeWebhook } from './controllers/stripeController.js';
 
 const app = express();
 
@@ -81,7 +82,12 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
 // ---------------------------------------------------------------------------
-// 1. Body parsing & compression (MUST BE BEFORE APOLLO)
+// 1. Stripe webhook — raw body required, MUST be before express.json()
+// ---------------------------------------------------------------------------
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
+
+// ---------------------------------------------------------------------------
+// 2. Body parsing & compression (MUST BE BEFORE APOLLO)
 // ---------------------------------------------------------------------------
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
