@@ -234,7 +234,7 @@ export default function Dashboard() {
   const [tagFilter, setTagFilter] = useState('');
   const [sort, setSort] = useState('newest');
 
-  const { data: meData } = useQuery(ME);
+  const { data: meData } = useQuery(ME, { fetchPolicy: 'cache-and-network' });
   const { data: projectsData, loading, error } = useQuery(MY_PROJECTS);
 
   const handleLogout = () => {
