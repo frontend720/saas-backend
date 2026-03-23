@@ -3,6 +3,8 @@ import Asset from "../models/Asset.js";
 import User from "../models/User.js";
 import Subscription from "../models/Subscription.js";
 import { AppError } from "../utils/AppError.js";
+import { getLimits } from "../middleware/tierLimits.js";
+import getStripe from "../services/stripeService.js";
 
 export const resolvers = {
   Query: {
@@ -106,7 +108,7 @@ export const resolvers = {
 
   Project: {
     assets: async (parent) => {
-      return await Asset.find({ project: parent._id, isDeleted: false });
+      return await Asset.find({ project: parent._id, isDeleted: false }).sort('-createdAt');
     },
   },
 
@@ -116,6 +118,19 @@ export const resolvers = {
     // -----------------------------------------------------------------------
     createProject: async (_, { name, description }, context) => {
       if (!context.user) throw AppError.unauthorized("Not authenticated");
+
+      if (context.user.role !== 'admin') {
+        const limits = getLimits(context.user.tier);
+        const count = await Project.countDocuments({
+          owner: context.user.id,
+          status: { $ne: 'deleted' },
+        });
+        if (count >= limits.maxProjects) {
+          throw AppError.forbidden(
+            `Your ${context.user.tier} plan allows ${limits.maxProjects} projects. Upgrade to create more.`
+          );
+        }
+      }
 
       const project = await Project.create({
         name,
@@ -185,6 +200,15 @@ export const resolvers = {
         owner: context.user.id,
       });
       if (!project) throw AppError.notFound("Project not found");
+
+      if (context.user.role !== 'admin') {
+        const limits = getLimits(context.user.tier);
+        if (project.assetCount >= limits.maxAssetsPerProject) {
+          throw AppError.forbidden(
+            `Your ${context.user.tier} plan allows ${limits.maxAssetsPerProject} assets per project. Upgrade for more.`
+          );
+        }
+      }
 
       const asset = await Asset.create({
         project: project._id,
@@ -313,11 +337,10 @@ export const resolvers = {
       if (!subscription)
         throw AppError.notFound("No active subscription found");
 
-      // TODO: Call Stripe API to cancel at period end
-      // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-      // await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
-      //   cancel_at_period_end: true,
-      // });
+      const stripe = getStripe();
+      await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+        cancel_at_period_end: true,
+      });
 
       subscription.cancelAtPeriodEnd = true;
       await subscription.save();

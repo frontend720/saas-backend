@@ -22,7 +22,7 @@ export const USER = gql`
 // Projects
 export const MY_PROJECTS = gql`
   query MyProjects {
-    myProjects { id name slug status description tags assetCount }
+    myProjects { id name slug status description tags assetCount createdAt }
   }
 `;
 
@@ -30,7 +30,7 @@ export const PROJECT = gql`
   query Project($id: ID!) {
     project(id: $id) {
       id name slug status description tags assetCount
-      assets { id filename mimeType url thumbnailUrl }
+      assets { id filename mimeType size url thumbnailUrl createdAt }
     }
   }
 `;

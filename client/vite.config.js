@@ -9,12 +9,12 @@ export default defineConfig({
     port: 5173,
     host: true,
     proxy: {
-      // '/api': 'http://localhost:4500',
-      // '/graphql': 'http://localhost:4500',
-      '/api': 'https://8292-83-136-182-237.ngrok-free.app',
-      '/graphql': 'https://8292-83-136-182-237.ngrok-free.app',
-      '/uploads': 'https://8292-83-136-182-237.ngrok-free.app',
+      '/api': 'http://localhost:4500',
+      '/graphql': 'http://localhost:4500',
+      //   '/api': 'http://127.0.0.1:4040',
+      // '/graphql': 'https://8292-83-136-182-237.ngrok-free.app',
     },
-    http: '192.168.1.142'
+    // http: '192.168.1.142'
+    http: '172.20.10.2' // Starbucks
   },
 })

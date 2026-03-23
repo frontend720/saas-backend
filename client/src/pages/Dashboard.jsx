@@ -1,15 +1,19 @@
 // src/pages/Dashboard.jsx
 import { useQuery, useMutation } from '@apollo/client'
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Camera, FolderOpen, Layers, Settings, LogOut, Plus, ChevronRight } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Camera, FolderOpen, Layers, Settings, LogOut, Plus, ChevronRight, Search, Tag, ArrowUpDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { DashboardSkeleton } from '../components/Skeleton.jsx';
+import { useToast } from '../context/ToastContext.jsx'; // used in CreateModal
 import { MY_PROJECTS } from '../graphql/queries';
 import { ME } from '../graphql/queries';
 import { CREATE_PROJECT } from '../graphql/mutations';
 
 const MobileHeader = ({ user, onLogout }) => {
   const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+  const active = (path) => pathname === path ? 'text-[#FF4500]' : 'text-[#111111] hover:text-[#FF4500] transition-colors';
 
   return (
     <div className="md:hidden">
@@ -29,11 +33,11 @@ const MobileHeader = ({ user, onLogout }) => {
       {open && (
         <div className="border-b border-[#111111] bg-white px-6 py-4 space-y-4">
           <nav className="space-y-3 font-mono text-sm">
-            <Link to="/" onClick={() => setOpen(false)} className="flex items-center gap-3 text-[#FF4500]">
+            <Link to="/" onClick={() => setOpen(false)} className={`flex items-center gap-3 ${active('/')}`}>
               <FolderOpen size={16} />
               [ CAPSULES ]
             </Link>
-            <Link to="/settings" onClick={() => setOpen(false)} className="flex items-center gap-3 text-[#111111] hover:text-[#FF4500] transition-colors">
+            <Link to="/settings" onClick={() => setOpen(false)} className={`flex items-center gap-3 ${active('/settings')}`}>
               <Settings size={16} />
               [ SYSTEM_PREFS ]
             </Link>
@@ -58,7 +62,17 @@ const MobileHeader = ({ user, onLogout }) => {
   );
 };
 
-const Sidebar = ({ user, onLogout }) => (
+const TIER_LIMITS = { free: 3, pro: 50, enterprise: Infinity };
+
+const Sidebar = ({ user, onLogout, projectCount }) => {
+  const { pathname } = useLocation();
+  const active = (path) => pathname === path ? 'text-[#FF4500]' : 'text-[#111111] hover:text-[#FF4500] transition-colors';
+
+  const tier = user?.tier || 'free';
+  const limit = TIER_LIMITS[tier] ?? 3;
+  const pct = limit === Infinity ? 0 : Math.min((projectCount / limit) * 100, 100);
+
+  return (
   <aside className="hidden md:flex flex-col w-64 h-screen border-r border-[#111111] bg-[#F9F9F9] p-6 justify-between shrink-0">
     <div>
       <div className="flex items-center gap-2 mb-12">
@@ -67,11 +81,11 @@ const Sidebar = ({ user, onLogout }) => (
       </div>
 
       <nav className="space-y-4 font-mono text-sm">
-        <Link to="/" className="flex items-center gap-3 text-[#FF4500] w-full text-left">
+        <Link to="/" className={`flex items-center gap-3 w-full text-left ${active('/')}`}>
           <FolderOpen size={18} />
           <span>[ CAPSULES ]</span>
         </Link>
-        <Link to="/settings" className="flex items-center gap-3 text-[#111111] hover:text-[#FF4500] transition-colors w-full text-left">
+        <Link to="/settings" className={`flex items-center gap-3 w-full text-left ${active('/settings')}`}>
           <Settings size={18} />
           <span>[ SYSTEM_PREFS ]</span>
         </Link>
@@ -84,6 +98,24 @@ const Sidebar = ({ user, onLogout }) => (
           <p className="font-mono text-xs text-[#111111]/60 uppercase">Signed in as</p>
           <p className="font-bold text-[#111111] truncate">{user.name}</p>
           <p className="font-mono text-xs text-[#111111]/60 uppercase mt-1">Tier: {user.tier}</p>
+
+          <div className="mt-4">
+            <div className="flex justify-between font-mono text-xs uppercase text-[#111111] mb-2">
+              <span>Capacity</span>
+              <span>{projectCount} / {limit === Infinity ? '∞' : limit}</span>
+            </div>
+            <div className="w-full h-2 bg-[#F9F9F9] border border-[#111111]">
+              <div className="h-full bg-[#FF4500] transition-all" style={{ width: `${pct}%` }} />
+            </div>
+            {tier === 'free' && (
+              <Link
+                to="/settings"
+                className="mt-3 block w-full py-2 text-center bg-[#111111] text-[#F9F9F9] font-mono text-xs uppercase hover:bg-[#FF4500] transition-colors"
+              >
+                Expand Storage
+              </Link>
+            )}
+          </div>
         </div>
       )}
 
@@ -96,7 +128,8 @@ const Sidebar = ({ user, onLogout }) => (
       </button>
     </div>
   </aside>
-);
+  );
+};
 
 const CapsuleCard = ({ project }) => (
   <Link to={`/project/${project.id}`} className="group border border-[#111111] bg-white cursor-pointer hover:border-[#FF4500] transition-colors flex flex-col h-64">
@@ -120,6 +153,7 @@ const CapsuleCard = ({ project }) => (
 );
 
 const CreateModal = ({ isOpen, onClose }) => {
+  const toast = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [createProject, { loading }] = useMutation(CREATE_PROJECT, {
@@ -135,8 +169,9 @@ const CreateModal = ({ isOpen, onClose }) => {
       setName('');
       setDescription('');
       onClose();
+      toast({ message: 'Capsule initialized.' });
     } catch (err) {
-      console.error('Create failed:', err.message);
+      toast({ message: err.message, type: 'error' });
     }
   };
 
@@ -195,6 +230,9 @@ export default function Dashboard() {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
+  const [search, setSearch] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
+  const [sort, setSort] = useState('newest');
 
   const { data: meData } = useQuery(ME);
   const { data: projectsData, loading, error } = useQuery(MY_PROJECTS);
@@ -204,15 +242,31 @@ export default function Dashboard() {
     navigate('/login');
   };
 
-  const projects = projectsData?.myProjects || [];
+  const allProjects = useMemo(() => projectsData?.myProjects || [], [projectsData]);
   const user = meData?.me;
+
+  const allTags = useMemo(() => {
+    const tags = new Set();
+    allProjects.forEach(p => p.tags?.forEach(t => tags.add(t)));
+    return [...tags];
+  }, [allProjects]);
+
+  const projects = useMemo(() => {
+    let list = [...allProjects];
+    if (search) list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
+    if (tagFilter) list = list.filter(p => p.tags?.includes(tagFilter));
+    if (sort === 'newest') list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    if (sort === 'oldest') list.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
+    return list;
+  }, [allProjects, search, tagFilter, sort]);
 
   return (
     <div className="flex h-screen w-full bg-[#F9F9F9] font-sans selection:bg-[#FF4500] selection:text-white">
-      <Sidebar user={user} onLogout={handleLogout} />
+      <Sidebar user={user} onLogout={handleLogout} projectCount={allProjects.length} />
 
       <main className="flex-1 flex flex-col overflow-hidden">
-         <MobileHeader user={user} onLogout={handleLogout} />
+        <MobileHeader user={user} onLogout={handleLogout} />
         <header className="h-20 border-b border-[#111111] px-6 lg:px-12 flex items-center justify-between bg-white shrink-0">
           <div className="font-mono text-sm text-[#111111]">
             <span className="text-[#FF4500]">SYSTEM</span> // CAPSULES
@@ -228,20 +282,56 @@ export default function Dashboard() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 lg:p-12">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
-            <div>
-              <h2 className="text-4xl font-bold text-[#111111] uppercase tracking-tighter mb-2">Active Capsules</h2>
-              <p className="font-mono text-sm text-[#111111]/60">
-                {projects.length > 0
-                  ? `${projects.length} capsule${projects.length !== 1 ? 's' : ''} loaded.`
-                  : 'No capsules yet. Init your first one.'}
-              </p>
+          <div className="mb-8">
+            <h2 className="text-4xl font-bold text-[#111111] uppercase tracking-tighter mb-2">Active Capsules</h2>
+            <p className="font-mono text-sm text-[#111111]/60 mb-6">
+              {allProjects.length > 0
+                ? `${String(projects.length).padStart(2, '0')} CAPSULES INITIALIZED.`
+                : 'NO CAPSULES INITIALIZED.'}
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#111111]/40" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="SEARCH CAPSULES..."
+                  className="w-full border border-[#111111] pl-9 pr-4 py-2.5 bg-white font-mono text-xs focus:outline-none focus:border-[#FF4500] transition-colors uppercase placeholder:text-[#111111]/30"
+                />
+              </div>
+
+              {allTags.length > 0 && (
+                <div className="relative">
+                  <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#111111]/40" />
+                  <select
+                    value={tagFilter}
+                    onChange={e => setTagFilter(e.target.value)}
+                    className="border border-[#111111] pl-9 pr-8 py-2.5 bg-white font-mono text-xs focus:outline-none focus:border-[#FF4500] transition-colors uppercase appearance-none cursor-pointer"
+                  >
+                    <option value="">ALL TAGS</option>
+                    {allTags.map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <div className="relative">
+                <ArrowUpDown size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#111111]/40" />
+                <select
+                  value={sort}
+                  onChange={e => setSort(e.target.value)}
+                  className="border border-[#111111] pl-9 pr-8 py-2.5 bg-white font-mono text-xs focus:outline-none focus:border-[#FF4500] transition-colors uppercase appearance-none cursor-pointer"
+                >
+                  <option value="newest">NEWEST</option>
+                  <option value="oldest">OLDEST</option>
+                  <option value="name">NAME A–Z</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          {loading && (
-            <div className="font-mono text-sm text-[#111111]/60">Loading capsules...</div>
-          )}
+          {loading && <DashboardSkeleton />}
 
           {error && (
             <div className="border border-[#FF4500] bg-[#FF4500]/5 p-4 font-mono text-xs text-[#FF4500]">
@@ -250,11 +340,17 @@ export default function Dashboard() {
           )}
 
           {!loading && !error && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {projects.map((project) => (
-                <CapsuleCard key={project.id} project={project} />
-              ))}
-            </div>
+            <>
+              {projects.length === 0 && allProjects.length > 0 ? (
+                <p className="font-mono text-sm text-[#111111]/40">No capsules match your filters.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {projects.map((project) => (
+                    <CapsuleCard key={project.id} project={project} />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>

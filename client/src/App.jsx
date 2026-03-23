@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Project from './pages/Project';
 import Settings from './pages/Settings';
+import CheckoutSuccess from './pages/CheckoutSuccess';
 import { useAuth } from './context/AuthContext';
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/project/:id" element={<ProtectedRoute><Project /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/checkout/success" element={<ProtectedRoute><CheckoutSuccess /></ProtectedRoute>} />
     </Routes>
   );
 }

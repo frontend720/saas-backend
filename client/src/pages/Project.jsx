@@ -1,7 +1,10 @@
 // src/pages/Project.jsx
 import { useQuery, useMutation } from "@apollo/client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import AssetIngester from "../components/AssetIngester.jsx";
+import { ProjectSkeleton } from "../components/Skeleton.jsx";
+import { useToast } from "../context/ToastContext.jsx";
+import Lightbox from "../components/Lightbox.jsx";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -14,6 +17,8 @@ import {
   Video,
   FileText,
   Music,
+  Search,
+  ArrowUpDown,
 } from "lucide-react";
 import { PROJECT } from "../graphql/queries";
 import {
@@ -31,12 +36,15 @@ const getAssetIcon = (mimeType) => {
   return FileText;
 };
 
-const AssetCard = ({ asset, onDelete }) => {
+const AssetCard = ({ asset, onDelete, onOpen }) => {
   const Icon = getAssetIcon(asset.mimeType);
 
   return (
     <div className="group border border-[#111111] bg-white flex flex-col h-48">
-      <div className="flex-1 border-b border-[#111111] flex items-center justify-center bg-[#F9F9F9] relative overflow-hidden">
+      <div
+        className="flex-1 border-b border-[#111111] flex items-center justify-center bg-[#F9F9F9] relative overflow-hidden cursor-pointer"
+        onClick={onOpen}
+      >
         {asset.thumbnailUrl || (asset.url && asset.mimeType?.startsWith('image/')) ? (
           <img
             src={asset.thumbnailUrl || asset.url}
@@ -44,13 +52,18 @@ const AssetCard = ({ asset, onDelete }) => {
             className="w-full h-full object-cover"
           />
         ) : (
-          // eslint-disable-next-line react-hooks/static-components
           <Icon className="text-[#111111] opacity-20" size={36} />
         )}
 
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+          <span className="opacity-0 group-hover:opacity-100 transition-opacity font-mono text-[10px] text-white uppercase bg-black/60 px-2 py-1">
+            View
+          </span>
+        </div>
+
         <button
-          onClick={() => onDelete(asset.id)}
-          className="absolute top-2 right-2 p-1.5 bg-white border border-[#111111] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#FF4500] hover:text-white hover:border-[#FF4500]"
+          onClick={e => { e.stopPropagation(); onDelete(asset.id); }}
+          className="absolute top-2 right-2 p-1.5 bg-white border border-[#111111] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:bg-[#FF4500] hover:text-white hover:border-[#FF4500]"
         >
           <Trash2 size={12} />
         </button>
@@ -69,6 +82,7 @@ const AssetCard = ({ asset, onDelete }) => {
 };
 
 const EditModal = ({ isOpen, onClose, project }) => {
+  const toast = useToast();
   const [name, setName] = useState(project?.name || "");
   const [description, setDescription] = useState(project?.description || "");
   const [tags, setTags] = useState(project?.tags?.join(", ") || "");
@@ -89,9 +103,10 @@ const EditModal = ({ isOpen, onClose, project }) => {
           .filter(Boolean),
       };
       await updateProject({ variables: { id: project.id, input } });
+      toast({ message: 'Capsule updated.' });
       onClose();
     } catch (err) {
-      console.error("Update failed:", err.message);
+      toast({ message: err.message, type: 'error' });
     }
   };
 
@@ -174,8 +189,13 @@ const EditModal = ({ isOpen, onClose, project }) => {
 export default function Project() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [showEdit, setShowEdit] = useState(false);
   const [showIngest, setShowIngest] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [sort, setSort] = useState('newest');
 
   const { data, loading, error, refetch } = useQuery(PROJECT, {
     variables: { id },
@@ -183,11 +203,15 @@ export default function Project() {
 
   const [deleteProject] = useMutation(DELETE_PROJECT, {
     refetchQueries: [{ query: MY_PROJECTS }],
-    onCompleted: () => navigate("/"),
+    onCompleted: () => {
+      toast({ message: 'Capsule deleted.' });
+      navigate("/");
+    },
   });
 
   const [deleteAsset] = useMutation(DELETE_ASSET, {
     refetchQueries: [{ query: PROJECT, variables: { id } }],
+    onCompleted: () => toast({ message: 'Asset removed.' }),
   });
 
   const handleDelete = async () => {
@@ -196,7 +220,7 @@ export default function Project() {
     try {
       await deleteProject({ variables: { id } });
     } catch (err) {
-      console.error("Delete failed:", err.message);
+      toast({ message: err.message, type: 'error' });
     }
   };
 
@@ -205,19 +229,27 @@ export default function Project() {
     try {
       await deleteAsset({ variables: { id: assetId } });
     } catch (err) {
-      console.error("Delete asset failed:", err.message);
+      toast({ message: err.message, type: 'error' });
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F9F9F9] flex items-center justify-center">
-        <p className="font-mono text-sm text-[#111111]/60">
-          Loading capsule...
-        </p>
-      </div>
-    );
-  }
+  const allAssets = useMemo(() => data?.project?.assets || [], [data]);
+
+  const assets = useMemo(() => {
+    let list = [...allAssets];
+    if (search) list = list.filter(a => a.filename.toLowerCase().includes(search.toLowerCase()));
+    if (typeFilter === 'image') list = list.filter(a => a.mimeType?.startsWith('image/'));
+    if (typeFilter === 'video') list = list.filter(a => a.mimeType?.startsWith('video/'));
+    if (typeFilter === 'audio') list = list.filter(a => a.mimeType?.startsWith('audio/'));
+    if (typeFilter === 'document') list = list.filter(a => !a.mimeType?.startsWith('image/') && !a.mimeType?.startsWith('video/') && !a.mimeType?.startsWith('audio/'));
+    if (sort === 'newest') list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    if (sort === 'oldest') list.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    if (sort === 'name') list.sort((a, b) => a.filename.localeCompare(b.filename));
+    if (sort === 'size') list.sort((a, b) => (b.size || 0) - (a.size || 0));
+    return list;
+  }, [allAssets, search, typeFilter, sort]);
+
+  if (loading) return <ProjectSkeleton />;
 
   if (error || !data?.project) {
     return (
@@ -238,44 +270,42 @@ export default function Project() {
   }
 
   const project = data.project;
-  const assets = project.assets || [];
 
   return (
     <div className="min-h-screen bg-[#F9F9F9]">
       {/* Header */}
-      <header className="h-20 border-b border-[#111111] px-6 lg:px-12 flex items-center justify-between bg-white">
-        <div className="flex items-center gap-4">
+      <header className="h-16 border-b border-[#111111] px-4 lg:px-12 flex items-center justify-between gap-3 bg-white">
+        <div className="flex items-center gap-3 min-w-0">
           <Link
             to="/"
-            className="text-[#111111] hover:text-[#FF4500] transition-colors"
+            className="shrink-0 text-[#111111] hover:text-[#FF4500] transition-colors"
           >
             <ArrowLeft size={20} />
           </Link>
-          <div>
-            <div className="font-mono text-xs text-[#111111]/60">
-              <span className="text-[#FF4500]">SYSTEM</span> // CAPSULES //{" "}
-              {project.slug}
+          <div className="min-w-0">
+            <div className="font-mono text-[10px] text-[#111111]/60 truncate">
+              <span className="text-[#FF4500]">SYSTEM</span> // {project.slug}
             </div>
-            <h1 className="text-xl font-bold text-[#111111] uppercase">
+            <h1 className="text-base font-bold text-[#111111] uppercase truncate">
               {project.name}
             </h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setShowEdit(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-[#111111] font-mono text-xs uppercase hover:bg-[#111111] hover:text-white transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 border border-[#111111] font-mono text-xs uppercase hover:bg-[#111111] hover:text-white transition-colors"
           >
-            <Edit3 size={14} />
-            Edit
+            <Edit3 size={13} />
+            <span className="hidden sm:inline">Edit</span>
           </button>
           <button
             onClick={handleDelete}
-            className="flex items-center gap-2 px-4 py-2 border border-[#FF4500] text-[#FF4500] font-mono text-xs uppercase hover:bg-[#FF4500] hover:text-white transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 border border-[#FF4500] text-[#FF4500] font-mono text-xs uppercase hover:bg-[#FF4500] hover:text-white transition-colors"
           >
-            <Trash2 size={14} />
-            Delete
+            <Trash2 size={13} />
+            <span className="hidden sm:inline">Delete</span>
           </button>
         </div>
       </header>
@@ -326,7 +356,7 @@ export default function Project() {
 
       {/* Assets */}
       <div className="px-6 lg:px-12 py-8">
-        <div className="flex justify-between items-end mb-6">
+        <div className="flex justify-between items-end mb-4">
           <h2 className="text-2xl font-bold text-[#111111] uppercase tracking-tight">
             Assets
           </h2>
@@ -339,13 +369,54 @@ export default function Project() {
           </button>
         </div>
 
-        {assets.length === 0 ? (
+        {allAssets.length > 0 && (
+          <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#111111]/40" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="SEARCH ASSETS..."
+                className="w-full border border-[#111111] pl-9 pr-4 py-2.5 bg-white font-mono text-xs focus:outline-none focus:border-[#FF4500] transition-colors uppercase placeholder:text-[#111111]/30"
+              />
+            </div>
+            <select
+              value={typeFilter}
+              onChange={e => setTypeFilter(e.target.value)}
+              className="border border-[#111111] px-4 py-2.5 bg-white font-mono text-xs focus:outline-none focus:border-[#FF4500] transition-colors uppercase appearance-none cursor-pointer"
+            >
+              <option value="">ALL TYPES</option>
+              <option value="image">IMAGES</option>
+              <option value="video">VIDEO</option>
+              <option value="audio">AUDIO</option>
+              <option value="document">DOCUMENTS</option>
+            </select>
+            <div className="relative">
+              <ArrowUpDown size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#111111]/40" />
+              <select
+                value={sort}
+                onChange={e => setSort(e.target.value)}
+                className="border border-[#111111] pl-9 pr-8 py-2.5 bg-white font-mono text-xs focus:outline-none focus:border-[#FF4500] transition-colors uppercase appearance-none cursor-pointer"
+              >
+                <option value="newest">NEWEST</option>
+                <option value="oldest">OLDEST</option>
+                <option value="name">NAME A–Z</option>
+                <option value="size">LARGEST</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {allAssets.length === 0 ? (
           <div className="border border-dashed border-[#111111]/30 p-12 flex flex-col items-center justify-center">
             <Layers className="text-[#111111] opacity-20 mb-4" size={48} />
             <p className="font-mono text-sm text-[#111111]/60">
               No assets ingested yet.
             </p>
           </div>
+        ) : assets.length === 0 ? (
+          <p className="font-mono text-sm text-[#111111]/40">No assets match your filters.</p>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {assets.map((asset) => (
@@ -353,6 +424,7 @@ export default function Project() {
                 key={asset.id}
                 asset={asset}
                 onDelete={handleDeleteAsset}
+                onOpen={() => setLightboxIndex(allAssets.findIndex(a => a.id === asset.id))}
               />
             ))}
           </div>
@@ -369,8 +441,17 @@ export default function Project() {
         isOpen={showIngest}
         onClose={() => setShowIngest(false)}
         activeCapsuleId={id}
-        onSuccess={() => refetch()}
+        onSuccess={() => { refetch(); toast({ message: 'Asset ingested.' }); }}
       />
+
+      {lightboxIndex !== null && (
+        <Lightbox
+          assets={allAssets}
+          index={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onNavigate={setLightboxIndex}
+        />
+      )}
     </div>
   );
 }

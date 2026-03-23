@@ -91,6 +91,7 @@
 - [x] Consistent form styling across all pages
 - [x] iOS safe area support (env(safe-area-inset-top/bottom))
 - [x] App icon set — SVG, ICO, apple-touch-icon, 192px, 512px PNGs
+- [x] PWA manifest + apple-mobile-web-app-capable — hides Safari chrome when launched from home screen
 
 ### DevOps & Tooling
 - [x] Apollo Sandbox connected via Chrome (studio.apollographql.com)
@@ -109,44 +110,62 @@
 - [x] Login response shape mismatch — data.data.accessToken not data.token
 - [x] Dashboard cache not invalidating on project delete — added refetchQueries
 - [x] No mobile navigation — added MobileHeader component
+- [x] Mobile viewport auto-zooming on navigation — maximum-scale=1
+- [x] Project header overflow on long names — title truncates, buttons icon-only on mobile
+- [x] Asset delete button invisible on mobile — now always visible, hover-only on desktop
+- [x] Sidebar active tab hardcoded orange — now uses useLocation() to reflect current route
+- [x] database.js — hardcoded URIs and rogue mongoose.connect() at import time
+- [x] AssetIngester.js shadowing AssetIngester.jsx — Vite resolved wrong file, loaded react-dropzone (not installed)
+- [x] asset validator uri() rejecting relative /uploads paths — removed .uri() constraint
+- [x] checkAssetLimit crashing — req.project undefined, missing loadProject middleware on asset POST route
+- [x] Sidebar active tab hardcoded — now uses useLocation() to highlight current route in orange
+- [x] Mobile viewport auto-zooming on navigation — added maximum-scale=1 to viewport meta
+- [x] Project header overflow on long names — title truncates, buttons icon-only on mobile
+
+---
+
+## ⚠️ DO BEFORE END OF SESSION
+- [ ] Rotate Firebase service account key — current key was exposed in chat. Firebase Console → bate-mates → Project Settings → Service Accounts → delete key `...09ce1` → Generate new private key → replace `serviceAccount.json`
 
 ---
 
 ## Remaining — MVP
 
 ### File Upload System (HIGH PRIORITY)
-- [ ] Decide storage provider (local disk for dev, S3/GCP for prod)
-- [ ] POST /api/uploads — multer middleware for file handling
-- [ ] Storage service — save file, return storageKey + url
-- [ ] Thumbnail generation for images
-- [ ] Wire "Ingest" button on Project page to upload flow
-- [ ] Chain: upload file → get storageKey → call registerAsset mutation → refresh asset grid
+- [x] Decide storage provider — Firebase Storage (bate-mates.appspot.com)
+- [x] POST /api/uploads — multer memory storage + firebase-admin upload
+- [x] Storage service — storageService.js uploads to Firebase, returns public GCS URL
+- [x] Wire "Ingest" button on Project page to upload flow
+- [x] Chain: upload file → get storageKey → POST /api/projects/:id/assets → refetch asset grid
+- [x] Asset images display in grid using url field
+- [x] Thumbnail generation for images — sharp resizes to 400×400 JPEG, stored at assets/thumbs/ in Firebase
 
 ### Stripe Integration (HIGH PRIORITY)
-- [ ] Create Products + Prices in Stripe Dashboard (Pro monthly/yearly, Enterprise monthly/yearly)
-- [ ] Add STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET to .env
-- [ ] services/stripe.js — Stripe SDK initialization, helper functions
-- [ ] POST /api/stripe/checkout — create Checkout Session, redirect to Stripe
-- [ ] POST /api/stripe/webhook — handle events (raw body parsing before express.json)
-  - [ ] checkout.session.completed → create Subscription record, update User tier
-  - [ ] customer.subscription.updated → update Subscription status/dates
-  - [ ] customer.subscription.deleted → update Subscription status, downgrade User tier
-  - [ ] invoice.paid → update recentInvoices on Subscription
-  - [ ] invoice.payment_failed → update Subscription status to past_due
-- [ ] POST /api/stripe/portal — create Billing Portal session
-- [ ] Wire "Upgrade_Tier" button on Settings page to checkout flow
-- [ ] Update cancelSubscription resolver to call Stripe API
-- [ ] Add success/cancel redirect pages for post-checkout
+- [ ] Create Products + Prices in Stripe Dashboard (Pro monthly/yearly) → fill STRIPE_PRO_MONTHLY_PRICE_ID + STRIPE_PRO_YEARLY_PRICE_ID in src/.env
+- [ ] Fill STRIPE_WEBHOOK_SECRET in src/.env → run: stripe listen --forward-to localhost:4500/api/stripe/webhook
+- [x] services/stripeService.js — lazy Stripe initialization, createCheckoutSession, createPortalSession, constructWebhookEvent
+- [x] POST /api/stripe/checkout — creates Checkout Session, returns redirect URL
+- [x] POST /api/stripe/webhook — handles events (raw body parsing before express.json)
+  - [x] checkout.session.completed → creates Subscription record, updates User tier
+  - [x] customer.subscription.updated → updates Subscription status/dates
+  - [x] customer.subscription.deleted → updates Subscription status, downgrades User tier
+  - [x] invoice.paid → updates recentInvoices on Subscription
+  - [x] invoice.payment_failed → updates Subscription status to past_due
+- [x] POST /api/stripe/portal — creates Billing Portal session
+- [x] Wire "Upgrade_Tier" button on Settings page to checkout flow (plan selector + redirect)
+- [x] Update cancelSubscription resolver to call Stripe API
+- [x] Add success/cancel redirect pages for post-checkout (CheckoutSuccess.jsx)
 
 ### Tier Enforcement
-- [ ] Define tier limits (assets per project, total projects, storage, collaborators)
-- [ ] Implement checkProjectLimit middleware in createProject resolver
-- [ ] Implement checkAssetLimit in registerAsset resolver
-- [ ] Display usage/limits in sidebar (capacity bar from original design)
+- [x] Define tier limits (assets per project, total projects, storage, collaborators) — tierLimits.js
+- [x] checkProjectLimit middleware on REST POST /projects
+- [x] checkAssetLimit middleware on REST POST /projects/:id/assets (fixed missing loadProject dependency)
+- [x] Implement checkProjectLimit + checkAssetLimit in GraphQL resolvers (createProject, registerAsset)
+- [x] Display usage/limits in sidebar (capacity bar from original design — reference layout in client/src/IndexDashboard.jsx)
 - [ ] Gate collaborator features behind Pro/Enterprise tiers
 
 ### Config Bug Fix
-- [ ] Fix config/index.js — change mongo.uri from mongoose.connect() call to plain URI string
+- [x] Fixed database.js — removed rogue mongoose.connect() side-effect, all URIs now use config.mongo.uri
 
 ---
 

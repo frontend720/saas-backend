@@ -20,6 +20,8 @@ export const typeDefs = `#graphql
     url: String
     thumbnailUrl: String
     mimeType: String!
+    size: Int
+    createdAt: String
     meta: GarmentMeta
   }
 
@@ -32,6 +34,7 @@ export const typeDefs = `#graphql
     tags: [String]
     assetCount: Int
     lastActivityAt: String
+    createdAt: String
     assets: [Asset!]!
   }
 
