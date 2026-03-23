@@ -100,8 +100,16 @@ const apolloServer = new ApolloServer({
 await apolloServer.start();
 
 // Handle CORS preflight for /graphql explicitly
+const graphqlOrigins = [
+  'https://studio.apollographql.com',
+  'https://sandbox.embed.apollographql.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
+];
+
 app.options('/graphql', cors({
-  origin: ['https://studio.apollographql.com', 'https://sandbox.embed.apollographql.com', 'http://localhost:3000'],
+  origin: graphqlOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: [
@@ -117,7 +125,7 @@ app.options('/graphql', cors({
 app.use(
   '/graphql',
   cors({
-    origin: ['https://studio.apollographql.com', 'https://sandbox.embed.apollographql.com', 'http://localhost:3000'],
+    origin: graphqlOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: [
