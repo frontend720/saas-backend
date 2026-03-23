@@ -13,7 +13,7 @@ const config = {
   port: parseInt(process.env.PORT, 10) || 4500,
 
  mongo: {
-  uri: process.env.MONGO_URI || 'mongodb://localhost:27017/saas-backend',
+  uri: process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/saas-backend',
   options: {
     maxPoolSize: 10,
     serverSelectionTimeoutMS: 5000,
