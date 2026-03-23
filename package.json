@@ -6,7 +6,6 @@
   "type": "module",
   "scripts": {
     "dev": "NODE_ENV=development node --watch src/server.js",
-    "build": "cd client && npm install && npm run build",
     "start": "NODE_ENV=production node src/server.js",
     "seed": "node src/utils/seed.js",
     "test": "NODE_ENV=test node --test tests/**/*.test.js"
