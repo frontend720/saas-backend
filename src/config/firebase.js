@@ -20,6 +20,7 @@ if (!admin.apps.length) {
     credential: admin.credential.cert(serviceAccount),
     storageBucket: 'bate-mates.appspot.com',
   });
+  console.log('[firebase] initialized with bucket: bate-mates.appspot.com');
 }
 
 export const bucket = admin.storage().bucket();

@@ -16,6 +16,7 @@ export const upload = catchAsync(async (req, res) => {
     );
   }
 
-  const fileData = storageService.process(req.file);
+  const fileData = await storageService.process(req.file);
+  console.log('[upload] storageService returned url:', fileData.url);
   created(res, fileData);
 });
