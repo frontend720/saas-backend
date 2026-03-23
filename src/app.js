@@ -176,7 +176,7 @@ app.use('/api', routes);
 // Static frontend (production)
 // ---------------------------------------------------------------------------
 if (config.isProd) {
-  const distPath = resolve(__dirname, '../../client/dist');
+  const distPath = resolve(__dirname, '../client/dist');
   app.use(express.static(distPath));
   app.get('*', (_req, res) => {
     res.sendFile(resolve(distPath, 'index.html'));
